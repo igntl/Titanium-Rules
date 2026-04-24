@@ -7,6 +7,7 @@ const {
   EmbedBuilder
 } = require('discord.js');
 
+// 🧠 إنشاء البوت
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -16,10 +17,10 @@ const client = new Client({
   ]
 });
 
-// 🔒 حط ايدي الروم هنا
+// 🎯 هذا الروم فقط يشتغل فيه البوت
 const CHANNEL_ID = '1483219896069525665';
 
-// ⚽ الأندية (بدون إيموجي)
+// ⚽ قائمة الأندية (تقدر تعدلها)
 const clubs = [
   { label: 'Barcelona', value: 'barca', color: 0x004D98 },
   { label: 'Real Madrid', value: 'madrid', color: 0xFFFFFF },
@@ -29,8 +30,6 @@ const clubs = [
   { label: 'Chelsea', value: 'chelsea', color: 0x034694 },
   { label: 'Arsenal', value: 'arsenal', color: 0xEF0107 },
   { label: 'PSG', value: 'psg', color: 0x004170 },
-  { label: 'Bayern Munich', value: 'bayern', color: 0xDC052D },
-  { label: 'Juventus', value: 'juve', color: 0x000000 },
 
   { label: 'Al Nassr', value: 'nassr', color: 0xFCD116 },
   { label: 'Al Hilal', value: 'hilal', color: 0x0033A0 },
@@ -38,7 +37,7 @@ const clubs = [
   { label: 'Al Ahli', value: 'ahli', color: 0x006C35 }
 ];
 
-// 🧠 إنشاء الرول تلقائي
+// 🧠 دالة: تجيب الرول أو تنشئه إذا مو موجود
 async function getOrCreateRole(guild, club) {
   let role = guild.roles.cache.find(r => r.name === club.label);
 
@@ -53,31 +52,36 @@ async function getOrCreateRole(guild, club) {
   return role;
 }
 
+// ✅ لما البوت يشتغل
 client.once('ready', () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`✅ البوت شغال: ${client.user.tag}`);
 });
 
 // 📩 أمر !clubs
 client.on('messageCreate', async (msg) => {
   if (msg.author.bot) return;
+
+  // ❗ يشتغل فقط في هذا الروم
   if (msg.channel.id !== CHANNEL_ID) return;
 
   if (msg.content === '!clubs') {
 
+    // 🎨 شكل الرسالة
     const embed = new EmbedBuilder()
-      .setTitle('⚽ اختر ناديك')
-      .setDescription('تقدر تختار أكثر من نادي 👇')
-      .setColor('#2b2d31');
+      .setTitle('⚽ اختر ناديك المفضل')
+      .setDescription('تقدر تختار أكثر من نادي من القائمة 👇')
+      .setColor('#5865F2');
 
+    // 📋 القائمة
     const menu = new StringSelectMenuBuilder()
       .setCustomId('clubs_select')
-      .setPlaceholder('اختار أنديتك')
+      .setPlaceholder('اضغط هنا واختر ناديك')
       .setMinValues(1)
       .setMaxValues(5)
       .addOptions(
-        clubs.map(c => ({
-          label: c.label,
-          value: c.value
+        clubs.map(club => ({
+          label: club.label,
+          value: club.value
         }))
       );
 
@@ -90,19 +94,19 @@ client.on('messageCreate', async (msg) => {
   }
 });
 
-// 🎮 التفاعل
+// 🎮 لما المستخدم يختار
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
 
   const member = interaction.member;
-  const selected = interaction.values;
 
-  for (const value of selected) {
+  for (const value of interaction.values) {
     const club = clubs.find(c => c.value === value);
     if (!club) continue;
 
     const role = await getOrCreateRole(interaction.guild, club);
 
+    // 🔄 إذا عنده الرول يشيله، إذا لا يعطيه
     if (member.roles.cache.has(role.id)) {
       await member.roles.remove(role);
     } else {
@@ -111,9 +115,10 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   await interaction.reply({
-    content: '✅ تم تحديث أنديتك',
+    content: '✅ تم تحديث الأندية حقك',
     ephemeral: true
   });
 });
 
+// 🔐 تسجيل الدخول
 client.login(process.env.TOKEN);
