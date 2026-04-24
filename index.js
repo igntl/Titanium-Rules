@@ -19,23 +19,23 @@ const client = new Client({
 // 🔒 حط ايدي الروم هنا
 const CHANNEL_ID = '1483219896069525665';
 
-// ⚽ الأندية
+// ⚽ الأندية (بدون إيموجي)
 const clubs = [
-  { label: 'Barcelona', value: 'barca', emoji: '<:barca:ID>', color: 0x004D98 },
-  { label: 'Real Madrid', value: 'madrid', emoji: '<:madrid:ID>', color: 0xFFFFFF },
-  { label: 'Liverpool', value: 'liverpool', emoji: '<:liverpool:ID>', color: 0xC8102E },
-  { label: 'Manchester United', value: 'united', emoji: '<:united:ID>', color: 0xDA291C },
-  { label: 'Manchester City', value: 'city', emoji: '<:city:ID>', color: 0x6CABDD },
-  { label: 'Chelsea', value: 'chelsea', emoji: '<:chelsea:ID>', color: 0x034694 },
-  { label: 'Arsenal', value: 'arsenal', emoji: '<:arsenal:ID>', color: 0xEF0107 },
-  { label: 'PSG', value: 'psg', emoji: '<:psg:ID>', color: 0x004170 },
-  { label: 'Bayern Munich', value: 'bayern', emoji: '<:bayern:ID>', color: 0xDC052D },
-  { label: 'Juventus', value: 'juve', emoji: '<:juve:ID>', color: 0x000000 },
+  { label: 'Barcelona', value: 'barca', color: 0x004D98 },
+  { label: 'Real Madrid', value: 'madrid', color: 0xFFFFFF },
+  { label: 'Liverpool', value: 'liverpool', color: 0xC8102E },
+  { label: 'Manchester United', value: 'united', color: 0xDA291C },
+  { label: 'Manchester City', value: 'city', color: 0x6CABDD },
+  { label: 'Chelsea', value: 'chelsea', color: 0x034694 },
+  { label: 'Arsenal', value: 'arsenal', color: 0xEF0107 },
+  { label: 'PSG', value: 'psg', color: 0x004170 },
+  { label: 'Bayern Munich', value: 'bayern', color: 0xDC052D },
+  { label: 'Juventus', value: 'juve', color: 0x000000 },
 
-  { label: 'Al Nassr', value: 'nassr', emoji: '<:nassr:ID>', color: 0xFCD116 },
-  { label: 'Al Hilal', value: 'hilal', emoji: '<:hilal:ID>', color: 0x0033A0 },
-  { label: 'Al Ittihad', value: 'ittihad', emoji: '<:ittihad:ID>', color: 0xFFCC00 },
-  { label: 'Al Ahli', value: 'ahli', emoji: '<:ahli:ID>', color: 0x006C35 }
+  { label: 'Al Nassr', value: 'nassr', color: 0xFCD116 },
+  { label: 'Al Hilal', value: 'hilal', color: 0x0033A0 },
+  { label: 'Al Ittihad', value: 'ittihad', color: 0xFFCC00 },
+  { label: 'Al Ahli', value: 'ahli', color: 0x006C35 }
 ];
 
 // 🧠 إنشاء الرول تلقائي
@@ -53,7 +53,6 @@ async function getOrCreateRole(guild, club) {
   return role;
 }
 
-// ✅ تشغيل البوت
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
@@ -78,8 +77,7 @@ client.on('messageCreate', async (msg) => {
       .addOptions(
         clubs.map(c => ({
           label: c.label,
-          value: c.value,
-          emoji: c.emoji
+          value: c.value
         }))
       );
 
@@ -92,7 +90,7 @@ client.on('messageCreate', async (msg) => {
   }
 });
 
-// 🎮 التفاعل مع الاختيار
+// 🎮 التفاعل
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
 
