@@ -14,10 +14,22 @@ const client = new Client({
 const TOKEN = process.env.TOKEN;
 const TARGET_CHANNEL_ID = "1483219896069525665"; // روم الترشيحات
 const LOG_CHANNEL_ID = "1490286354175758366"; // روم اللوحة
-const CAPTAIN_ROLE_ID = "1495426762971283528"; // رتبة كابيتانو
+// الرتب
+const CAPTAIN_ROLE_ID = "1514077024044711936";
+const BEST_CAPTAIN_ROLE_ID = "1514077091061043280";
+const BELT_ROLE_ID = "1514077145448710234";
+const GREATEST_CAPTAIN_ROLE_ID = "1514077221092855898";
 // ===========================
 
 const DATA_FILE = "./data.json";
+
+// تعيين الحد الأقصى لكل رتبة
+const ROLE_MAX = {
+  [CAPTAIN_ROLE_ID]: 2,
+  [BEST_CAPTAIN_ROLE_ID]: 3,
+  [BELT_ROLE_ID]: 3,
+  [GREATEST_CAPTAIN_ROLE_ID]: 4
+};
 
 function loadData() {
   return fs.readJsonSync(DATA_FILE);
@@ -108,21 +120,41 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
+    // ==== إضافة النجوم مباشرة
+    if (cmd === "!addstar") {
+      if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+
+      const user = message.mentions.users.first();
+      const amount = parseInt(args[2]) || 1;
+      if (!user) return;
+
+      if (!data.players[user.id]) data.players[user.id] = { stars: 0 };
+      data.players[user.id].stars += amount;
+
+      saveData(data);
+      updateLeaderboard();
+
+      const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+      logChannel.send(`✅ ${message.author} أعطى ${user} ${amount} ⭐`);
+      return;
+    }
+
+    // ==== إزالة النجوم مباشرة
     if (cmd === "!removestar") {
       if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
 
       const user = message.mentions.users.first();
-      const amount = parseInt(args[2]);
-
-      if (!user || isNaN(amount)) return;
-
-      if (!data.players[user.id]) return;
+      const amount = parseInt(args[2]) || 1;
+      if (!user || !data.players[user.id]) return;
 
       data.players[user.id].stars -= amount;
       if (data.players[user.id].stars < 0) data.players[user.id].stars = 0;
 
       saveData(data);
       updateLeaderboard();
+
+      const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+      logChannel.send(`⚠️ ${message.author} أزال ${amount} ⭐ من ${user}`);
       return;
     }
   }
@@ -132,15 +164,20 @@ client.on("messageCreate", async (message) => {
   if (message.channel.id !== TARGET_CHANNEL_ID) return;
 
   const mentions = [...message.mentions.users.values()];
-
   if (mentions.length === 0) return;
 
-  const isCaptain = message.member.roles.cache.has(CAPTAIN_ROLE_ID);
-
-  const max = isCaptain ? 3 : 2;
+  // تحديد الحد الأقصى حسب رتبة العضو
+  const memberRoles = message.member.roles.cache.map(r => r.id);
+  let max = 2; // افتراضي للأعضاء العاديين
+  for (const r of memberRoles) {
+    if (ROLE_MAX[r]) {
+      max = ROLE_MAX[r];
+      break;
+    }
+  }
 
   if (mentions.length > max) {
-    return message.reply("ترشيحك لن يتم اعتماده بسبب ان ماعندك رتبة كابيتانو ممنوع تمنشن 3");
+    return message.reply(`ترشيحك لن يتم اعتماده بسبب ان ماعندك رتبة تسمح لك ترشح اكثر من ${max}`);
   }
 
   // إزالة التكرار
