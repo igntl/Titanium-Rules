@@ -14,11 +14,16 @@ const client = new Client({
 const TOKEN = process.env.TOKEN;
 const TARGET_CHANNEL_ID = "1483164935436374096"; // روم الترشيحات
 const LOG_CHANNEL_ID = "1514467163224801280"; // روم اللوحة
-// الرتب
+
+// الرتب (الكباتن)
 const CAPTAIN_ROLE_ID = "1487063117375602819";
 const BEST_CAPTAIN_ROLE_ID = "1487063698303352923";
 const BELT_ROLE_ID = "1496134224795799592";
 const GREATEST_CAPTAIN_ROLE_ID = "1498335510358266006";
+
+// رتبة التحكم بالنجوم (NEW)
+const STAR_MANAGER_ROLE_ID = "1490133596709584976";
+
 // ===========================
 
 const DATA_FILE = "./data.json";
@@ -87,12 +92,11 @@ client.on("messageCreate", async (message) => {
 
   const data = loadData();
 
-  // ===== أوامر =====
   if (message.content.startsWith("!")) {
     const args = message.content.split(" ");
     const cmd = args[0].toLowerCase();
 
-    // حذف الأمر مباشرة
+    // حذف الأمر
     if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
       message.delete().catch(() => {});
     }
@@ -112,17 +116,15 @@ client.on("messageCreate", async (message) => {
       const finalBoard = getLeaderboard(data, guild);
       await channel.send("🏆 **النتائج النهائية:**\n\n" + finalBoard);
 
-      // reset
       data.players = {};
       data.leaderboardMessageId = null;
-
       saveData(data);
       return;
     }
 
-    // ==== إضافة النجوم مباشرة
+    // ===== ADD STAR (FIXED ROLE) =====
     if (cmd === "!addstar") {
-      if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+      if (!message.member.roles.cache.has(STAR_MANAGER_ROLE_ID)) return;
 
       const user = message.mentions.users.first();
       const amount = parseInt(args[2]) || 1;
@@ -139,9 +141,9 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // ==== إزالة النجوم مباشرة
+    // ===== REMOVE STAR (FIXED ROLE) =====
     if (cmd === "!removestar") {
-      if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+      if (!message.member.roles.cache.has(STAR_MANAGER_ROLE_ID)) return;
 
       const user = message.mentions.users.first();
       const amount = parseInt(args[2]) || 1;
@@ -166,9 +168,9 @@ client.on("messageCreate", async (message) => {
   const mentions = [...message.mentions.users.values()];
   if (mentions.length === 0) return;
 
-  // تحديد الحد الأقصى حسب رتبة العضو
   const memberRoles = message.member.roles.cache.map(r => r.id);
-  let max = 2; // افتراضي للأعضاء العاديين
+  let max = 2;
+
   for (const r of memberRoles) {
     if (ROLE_MAX[r]) {
       max = ROLE_MAX[r];
@@ -180,11 +182,10 @@ client.on("messageCreate", async (message) => {
     return message.reply(`ترشيحك لن يتم اعتماده بسبب ان ماعندك رتبة تسمح لك ترشح اكثر من ${max}`);
   }
 
-  // إزالة التكرار
   const unique = [...new Set(mentions.map(u => u.id))];
 
   unique.forEach(id => {
-    if (id === message.author.id) return; // منع ترشيح نفسك
+    if (id === message.author.id) return;
 
     if (!data.players[id]) {
       data.players[id] = { stars: 0 };
