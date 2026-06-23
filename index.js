@@ -10,31 +10,29 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-// ====== عدل هذي القيم ======
+// ====== القيم ======
 const TOKEN = process.env.TOKEN;
 const TARGET_CHANNEL_ID = "1483164935436374096"; // روم الترشيحات
 const LOG_CHANNEL_ID = "1514467163224801280"; // روم اللوحة
 
-// الرتب (الكباتن)
+// الرتب
 const CAPTAIN_ROLE_ID = "1487063117375602819";
 const BEST_CAPTAIN_ROLE_ID = "1487063698303352923";
 const BELT_ROLE_ID = "1496134224795799592";
 const GREATEST_CAPTAIN_ROLE_ID = "1498335510358266006";
 
-// رتبة التحكم بالنجوم (NEW)
+// رتبة التحكم بالنجوم
 const STAR_MANAGER_ROLE_ID = "1490133596709584976";
 
-// ===========================
-
-const DATA_FILE = "./data.json";
-
-// تعيين الحد الأقصى لكل رتبة
+// حد الترشيحات لكل رتبة
 const ROLE_MAX = {
   [CAPTAIN_ROLE_ID]: 2,
   [BEST_CAPTAIN_ROLE_ID]: 3,
   [BELT_ROLE_ID]: 3,
   [GREATEST_CAPTAIN_ROLE_ID]: 4
 };
+
+const DATA_FILE = "./data.json";
 
 function loadData() {
   return fs.readJsonSync(DATA_FILE);
@@ -46,19 +44,18 @@ function saveData(data) {
 
 function getLeaderboard(data, guild) {
   const sorted = Object.entries(data.players)
-    .sort((a, b) => b[1].stars - a[1].stars)
-    .slice(0, 20);
+    .sort((a, b) => b[1].stars - a[1].stars);
 
   let text = "🏆 **نجوم التقسيمات:**\n\n";
 
-  sorted.forEach(([id, info], i) => {
-    const member = guild.members.cache.get(id);
-    const name = member ? `<@${id}>` : `User(${id})`;
-    text += `${i + 1}. ${name} — ${info.stars} ⭐\n`;
-  });
-
   if (sorted.length === 0) {
     text += "لا يوجد بيانات بعد.";
+  } else {
+    sorted.forEach(([id, info], i) => {
+      const member = guild.members.cache.get(id);
+      const name = member ? `<@${id}>` : `User(${id})`;
+      text += `${i + 1}. ${name} — ${info.stars} ⭐\n`;
+    });
   }
 
   return text;
@@ -87,42 +84,21 @@ async function updateLeaderboard() {
   }
 }
 
+// ===== ترشيحات =====
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   const data = loadData();
 
+  // أوامر إضافة/حذف يدوي
   if (message.content.startsWith("!")) {
     const args = message.content.split(" ");
     const cmd = args[0].toLowerCase();
 
-    // حذف الأمر
     if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
       message.delete().catch(() => {});
     }
 
-    if (cmd === "!start") {
-      data.enabled = true;
-      saveData(data);
-      return;
-    }
-
-    if (cmd === "!end") {
-      data.enabled = false;
-
-      const channel = await client.channels.fetch(LOG_CHANNEL_ID);
-      const guild = channel.guild;
-
-      const finalBoard = getLeaderboard(data, guild);
-      await channel.send("🏆 **النتائج النهائية:**\n\n" + finalBoard);
-
-      data.players = {};
-      data.leaderboardMessageId = null;
-      saveData(data);
-      return;
-    }
-
-    // ===== ADD STAR (FIXED ROLE) =====
     if (cmd === "!addstar") {
       if (!message.member.roles.cache.has(STAR_MANAGER_ROLE_ID)) return;
 
@@ -141,7 +117,6 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // ===== REMOVE STAR (FIXED ROLE) =====
     if (cmd === "!removestar") {
       if (!message.member.roles.cache.has(STAR_MANAGER_ROLE_ID)) return;
 
@@ -161,8 +136,7 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // ===== الترشيحات =====
-  if (!data.enabled) return;
+  // التحقق من القناة المخصصة للترشيحات
   if (message.channel.id !== TARGET_CHANNEL_ID) return;
 
   const mentions = [...message.mentions.users.values()];
@@ -182,15 +156,17 @@ client.on("messageCreate", async (message) => {
     return message.reply(`ترشيحك لن يتم اعتماده بسبب ان ماعندك رتبة تسمح لك ترشح اكثر من ${max}`);
   }
 
+  // إزالة التكرار
   const unique = [...new Set(mentions.map(u => u.id))];
 
   unique.forEach(id => {
-    if (id === message.author.id) return;
+    if (id === message.author.id) return; // منع ترشيح نفسه
 
     if (!data.players[id]) {
       data.players[id] = { stars: 0 };
     }
 
+    // ✅ هنا: **أي عدد من الترشيحات مسموح**
     data.players[id].stars += 1;
   });
 
