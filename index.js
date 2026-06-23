@@ -15,16 +15,23 @@ const TOKEN = process.env.TOKEN;
 const TARGET_CHANNEL_ID = "1483164935436374096"; // روم الترشيحات
 const LOG_CHANNEL_ID = "1514467163224801280"; // روم اللوحة
 
-// الرتب
+// الرتب (الكباتن)
 const CAPTAIN_ROLE_ID = "1487063117375602819";
 const BEST_CAPTAIN_ROLE_ID = "1487063698303352923";
 const BELT_ROLE_ID = "1496134224795799592";
 const GREATEST_CAPTAIN_ROLE_ID = "1498335510358266006";
 
 // رتبة التحكم بالنجوم
-const STAR_MANAGER_ROLE_ID = "1490133596709584976";
+const STAR_MANAGER_ROLE_ID = "1490133596709584976"; // نفس رتبة الإحصاء أيضًا
 
-// حد الترشيحات لكل رتبة
+// لسهولة إدارة صلاحيات الإضافة والحذف
+const STAR_MANAGERS = [
+  STAR_MANAGER_ROLE_ID // رتبة الإحصاء
+];
+
+// ===========================
+
+// تعيين الحد الأقصى لكل رتبة عند الترشيح
 const ROLE_MAX = {
   [CAPTAIN_ROLE_ID]: 2,
   [BEST_CAPTAIN_ROLE_ID]: 3,
@@ -84,23 +91,44 @@ async function updateLeaderboard() {
   }
 }
 
-// ===== ترشيحات =====
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   const data = loadData();
 
-  // أوامر إضافة/حذف يدوي
   if (message.content.startsWith("!")) {
     const args = message.content.split(" ");
     const cmd = args[0].toLowerCase();
 
+    // حذف الأمر من الشات
     if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
       message.delete().catch(() => {});
     }
 
+    if (cmd === "!start") {
+      data.enabled = true;
+      saveData(data);
+      return;
+    }
+
+    if (cmd === "!end") {
+      data.enabled = false;
+
+      const channel = await client.channels.fetch(LOG_CHANNEL_ID);
+      const guild = channel.guild;
+
+      const finalBoard = getLeaderboard(data, guild);
+      await channel.send("🏆 **النتائج النهائية:**\n\n" + finalBoard);
+
+      data.players = {};
+      data.leaderboardMessageId = null;
+      saveData(data);
+      return;
+    }
+
+    // إضافة نقاط يدوي
     if (cmd === "!addstar") {
-      if (!message.member.roles.cache.has(STAR_MANAGER_ROLE_ID)) return;
+      if (!message.member.roles.cache.some(r => STAR_MANAGERS.includes(r.id))) return;
 
       const user = message.mentions.users.first();
       const amount = parseInt(args[2]) || 1;
@@ -117,8 +145,9 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
+    // إزالة نقاط يدوي
     if (cmd === "!removestar") {
-      if (!message.member.roles.cache.has(STAR_MANAGER_ROLE_ID)) return;
+      if (!message.member.roles.cache.some(r => STAR_MANAGERS.includes(r.id))) return;
 
       const user = message.mentions.users.first();
       const amount = parseInt(args[2]) || 1;
@@ -136,7 +165,8 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // التحقق من القناة المخصصة للترشيحات
+  // ===== الترشيحات من الأعضاء =====
+  if (!data.enabled) return;
   if (message.channel.id !== TARGET_CHANNEL_ID) return;
 
   const mentions = [...message.mentions.users.values()];
@@ -144,7 +174,6 @@ client.on("messageCreate", async (message) => {
 
   const memberRoles = message.member.roles.cache.map(r => r.id);
   let max = 2;
-
   for (const r of memberRoles) {
     if (ROLE_MAX[r]) {
       max = ROLE_MAX[r];
@@ -160,13 +189,13 @@ client.on("messageCreate", async (message) => {
   const unique = [...new Set(mentions.map(u => u.id))];
 
   unique.forEach(id => {
-    if (id === message.author.id) return; // منع ترشيح نفسه
+    if (id === message.author.id) return; // منع الترشيح لنفسه
 
     if (!data.players[id]) {
       data.players[id] = { stars: 0 };
     }
 
-    // ✅ هنا: **أي عدد من الترشيحات مسموح**
+    // ✅ الروم الثاني يسجل الترشيحات بدون حد
     data.players[id].stars += 1;
   });
 
